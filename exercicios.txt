@@ -1,134 +1,140 @@
 1_a 11,6
-Max z = x1 + x2
+Max Z = x1 + x2
 2x1 + 1x2 <= 18
 -x1 + 2x2 <= 4
 3x1 - 6x2 <= 12
 
 1_b 66
-Max z = 6x1 + 2x2
+Max Z = 6x1 + 2x2
 3x1 + x2 <= 33
 x1 + x2 <= 13
 
 1_c 3
-Max z = x1 + x2
+Max Z = x1 + x2
 2x1 + x2 <= 8
 x1 + 2x2 <= 3
 
 1_d 45
-Max z = 3x1 + x2
+Max Z = 3x1 + x2
 2x1 + x2 <= 30
 x1 + 4x2 <= 40
- 
+
 1_e 352,5
-Max z = 2x1 + 5x2
+Max Z = 2x1 + 5x2
 3x1 + 10x2 <= 600
 x1 + 2x2 <= 162
 
 1_f 1,6667
-Min z = -x1 + 2x2
+Min Z = -x1 + 2x2
 -2x1 + x2 <= 3
 3x1 + 4x2 <= 5
 x1 - x2 <=2
 
-1_g site: 5, meu codigo: 0.3225806451612905
-Min z = -x1 + 2x2
+1_g essa tem que dar errado(ilimitado)
+Min Z = -x1 + 2x2
 x1 + x2 >= 1
 -5x1 + 2x2 >= -10
 3x1 + 5x2 >= 15
 
 1_h Z=0 , ilimitado
-Max z = 2x1 + 2x2
+Max Z = 2x1 + 2x2
 -0,5x1 + x2 <= 2
 x1 - x2 >= -1
 
 1_i 11,6
-Max z = x1 + x2
+Max Z = x1 + x2
 2x1 + x2 <= 18
 -x1 + 2x2 <= 4
 3x1 - 6x2 >= -12
 
-1_j  ilimitado, z=0
-Min z = 4x1 - 12x2
+1_j  ilimitado, z=0  DANDO ERRO
+Min Z = 4x1 - 12x2
 2x1 + x2 >= 6
 x1 + 3x2 <= 8
 x1  >= 4
 
 1_k 5
-Min z = -x1 - x2 + 0x3
+Min Z = -x1 - x2 + 0x3
 x1 + x3 >= 1
 x1 -3x2 - x3 >= 1
 x1 - x2 + 5x3 >= 5
 x1 + x2 + x3 <=5
 
-1_l 30
-Max z = 3x1 + 3x2 + 0x3
+1_l 30 DANDO ERRO
+Max Z = 3x1 + 3x2 + 0x3
 x1 + 3x3 <= 5
 x2 <=5
 3x1 + 2x3>= 6
 x1 + x2 <=10
 
-1_m 16 , mas não deveria ser infactivel?, se for >= o meu da 16
-Max z = 4x1 + 3x2
+1_m infactivel
+Max Z = 4x1 + 3x2
 x1 + 3x2<=7
 2x1 + 2x2 = 8
 x1 + x2 <= -3
 x2 <=2
 
 2_a 45
-Max z = 3x1 + x2
+Max Z = 3x1 + x2
 2x1 + x2 <= 30
 x1 + 4x2 <= 40
 
 2_b 352,5
-Max z = 2x1 + 5x2
+Max Z = 2x1 + 5x2
 3x1 + 10x2 <= 600
 x1 + 2x2 <= 162
 
 2_c 1,6666 
-Min z= -x1 + 2x2
+Min Z = -x1 + 2x2
 -2x1 + x2 <= 3
 3x1 + 4x2 <= 5
 x1 - x2 <= 2
 
 2_d 11,66666
-Max z= x1 + x2
+Max Z = x1 + x2
 2x1 + x2 <= 18
 -x1 + 2x2 <= 4
 3x1 − 6x2 >= -12
 
-2_e 30
-Max z = 3x1 + 3x2 + 0x3
+2_e 30 DANDO ERRO
+Max Z = 3x1 + 3x2 + 0x3
 x1 + 3x3 <= 5
 x2 <= 5
 3x1 + 2x3 >= 6
 x1 + x2 <= 10
 
-2_f 16, porem o meu só gera 16 se for >= e não <=
-Max z = 4x1 + 3x2
+2_f ilimitado
+Max Z = 4x1 + 3x2
 x1 + 3x2 <= 7
 2x1 + 2x2 = 8
 x1 + x2 <= -3
 x2 <= 2
 
-2_g deveria dar 36, meu codigo: 8
-Max z = 4x1 + 8x2
+2_g essa tem que dar errado(ilimitado) DANDO ERRO
+Max Z = 4x1 + 8x2
 3x1 + 2x2 = 18
 x1 + x2 <= 5
 x1 <= 4
 
-min z = -2.5x1 - 5.7x2 - x3 - 2x4 
+-248,3333333
+min Z = -2.5x1 - 5.7x2 - x3 - 2x4 
 x2 + x3 <= 18
 -1.5x1 + 2.5x2 <= 4
 3x1 - 6x2 + x4 <= 12.7
 
-14.9999 
-max z = 3x1 + 3x2 + 13x3
+14.9999 DANDO ERRO
+max Z = 3x1 + 3x2 + 13x3
 -3x1 + 6x2 + 7x3 <= 8
 6x1 - 3x2 + 7x3 <= 8
 x1 <= 2
 x3 >= 1
 
+99.28571428571435
 Max Z = 4x1 + 5x2 + 9x3 + 11x4
 x1 + x2 + x3 + x4 <= 15
 7x1 + 5x2 + 3x3 + 2x4 <= 120
 3x1 + 5x2 + 10x3 + 15x4 <= 100
+
+Min z = -5x1 - 3x2
+3x1 + 5x2 <= 15
+5x1 + 2x2 <= 10
