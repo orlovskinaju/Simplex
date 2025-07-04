@@ -114,6 +114,30 @@ def ler_arquivo_simplex(nome_arquivo):
         b.append(valor_b)
         tipos_restricao.append(tipo)
 
+    # Transforma restrições de igualdade em duas desigualdades
+    novas_restricoes = []
+    novos_tipos = []
+    novo_b = []
+    
+    for i, tipo in enumerate(tipos_restricao):
+        if tipo == "=":
+            # Divide em duas restrições (<= e >=)
+            novas_restricoes.append(restricoes[i].copy())
+            novos_tipos.append("<=")
+            novo_b.append(b[i])
+            
+            novas_restricoes.append(restricoes[i].copy())
+            novos_tipos.append(">=")
+            novo_b.append(b[i])
+        else:
+            novas_restricoes.append(restricoes[i].copy())
+            novos_tipos.append(tipo)
+            novo_b.append(b[i])
+    
+    restricoes = novas_restricoes
+    tipos_restricao = novos_tipos
+    b = novo_b
+
     # Adiciona variáveis de folga/excesso/artificiais
     num_colunas = num_var
     for i, tipo in enumerate(tipos_restricao):
@@ -130,15 +154,8 @@ def ler_arquivo_simplex(nome_arquivo):
             restricoes[i][num_colunas+1] = 1.0  # Variável artificial
             c.extend([0.0, 0.0])
             num_colunas += 2
-        elif tipo == "=":
-            for linha in restricoes:
-                linha.append(0.0)
-            restricoes[i][num_colunas] = 1.0  # Variável artificial
-            c.append(0.0)
-            num_colunas += 1
 
     return eh_maximizacao, c, restricoes, b
-
 
 def calcular_inversa(matriz):
     n = len(matriz)
@@ -194,17 +211,41 @@ def resolver_sistema(B, b, max_tentativas=10):
             if tentativa == max_tentativas - 1:
                 raise ValueError(f"Falha ao resolver sistema após {max_tentativas} tentativas: {str(e)}")
             B = [[elem + random.uniform(-1e-5, 1e-5) for elem in linha] for linha in B]
-
 def fase_I_aleatoria(A, b, c, max_bases=100):
     m, n = len(A), len(A[0])
-    A_art = [linha.copy() + [1.0 if i == j else 0.0 for j in range(m)] 
-             for i, linha in enumerate(A)]
-    c_art = [0.0]*n + [1.0]*m
-
+    
+    # Passo 1: Identificar restrições que precisam de artificiais
+    precisa_artificial = []
+    for i in range(m):
+        # Restrições >= ou = precisam de artificiais
+        if any(A[i][j] < -1e-6 for j in range(n)) or sum(abs(A[i][j]) for j in range(n)) == 0:
+            precisa_artificial.append(True)
+        else:
+            precisa_artificial.append(False)
+    
+    # Passo 2: Adicionar variáveis artificiais somente onde necessário
+    A_art = [linha.copy() for linha in A]
+    num_artificiais = sum(precisa_artificial)
+    indices_artificiais = []
+    
+    col_atual = n
+    for i in range(m):
+        if precisa_artificial[i]:
+            for linha in A_art:
+                linha.append(1.0 if len(linha) == col_atual else 0.0)
+            indices_artificiais.append(col_atual)
+            col_atual += 1
+        else:
+            for linha in A_art:
+                linha.append(0.0)  # Espaço reservado, mas não é artificial
+    
+    c_art = [0.0]*n + [1.0]*num_artificiais
+    
     print("\n=== FASE I ===")
-    print(f"Procurando base factível entre {min(max_bases, len(list(combinations(range(n+m), m))))} possibilidades...")
-
-    for base_candidata in gerenciar_bases_aleatorias(n + m, m, max_bases):
+    print(f"Variáveis artificiais adicionadas nas restrições: {[i+1 for i, val in enumerate(precisa_artificial) if val]}")
+    
+    # Passo 3: Busca por base factível com verificação rigorosa
+    for base_candidata in gerenciar_bases_aleatorias(n + num_artificiais, m, max_bases):
         try:
             B = [[A_art[i][j] for j in base_candidata] for i in range(m)]
             if np.linalg.matrix_rank(B) < m:
@@ -212,23 +253,53 @@ def fase_I_aleatoria(A, b, c, max_bases=100):
                 
             x_B = resolver_sistema(B, b)
             
-            if all(x >= -1e-6 for x in x_B):
-                w_valor = sum(x_B[i] for i, var in enumerate(base_candidata) if var >= n)
+            # Verificação EXTRA-RIGOROSA do Caso A
+            todas_artificiais_zero = True
+            for i, var in enumerate(base_candidata):
+                if var in indices_artificiais:
+                    if x_B[i] > 1e-6:  # Qualquer artificial > 0 → inviável
+                        todas_artificiais_zero = False
+                        break
+            
+            if not todas_artificiais_zero:
+                continue  # Descarta base - Caso B potencial
                 
-                if w_valor > 1e-6:
-                    raise ValueError("Problema inviável (W > 0)") #caso b
-                
-                print(f"Base factível encontrada: {[x+1 for x in base_candidata]}") #caso a
-                return base_candidata
+            # Verifica factibilidade nas restrições ORIGINAIS
+            solucao = [0.0] * n
+            for i, var in enumerate(base_candidata):
+                if var < n:  # Ignora artificiais
+                    solucao[var] = x_B[i]
+            
+            factivel = True
+            for i in range(m):
+                lhs = sum(A[i][j] * solucao[j] for j in range(n))
+                if precisa_artificial[i]:  # Restrição original era >= ou =
+                    if lhs < b[i] - 1e-6:  # Não satisfaz
+                        factivel = False
+                        break
+                else:  # Restrição original era <=
+                    if lhs > b[i] + 1e-6:  # Não satisfaz
+                        factivel = False
+                        break
+            
+            if factivel:  # CASO A CONFIRMADO
+                print(f"Base factível encontrada: {[x+1 for x in base_candidata if x < n]}")
+                return [var for var in base_candidata if var < n]  # Remove artificiais
+            
         except:
             continue
-
-    raise ValueError("Não foi encontrada base factível na Fase I")
+    
+    # CASO B - Nenhuma base factível encontrada
+    print("\n=== RESULTADO FASE I ===")
+    print("Todas as bases testadas resultaram em:")
+    print("1. Variáveis artificiais positivas OU")
+    print("2. Não satisfazem restrições originais")
+    raise ValueError("PROBLEMA INFACTÍVEL (Caso B) - Não existe solução viável")
 
 def simplex(A, b, c, base, nao_base, eh_fase_I=False):
     m = len(A)
     iteracoes = 0
-    max_iteracoes = 100
+    max_iteracoes = 1000  # Aumentado para problemas mais complexos
 
     while iteracoes < max_iteracoes:
         iteracoes += 1
@@ -254,6 +325,25 @@ def simplex(A, b, c, base, nao_base, eh_fase_I=False):
             a_Nk = [A[i][nao_base[k]] for i in range(m)]
             y = resolver_sistema(B, a_Nk)
             
+            # Verificação robusta de ilimitação
+            if all(y_i <= 1e-6 for y_i in y):
+                # Verifica se a variável pode crescer indefinidamente
+                solucao = [0.0] * len(A[0])
+                for i, var in enumerate(base):
+                    solucao[var] = x_B[i]
+                
+                # Testa se a direção leva a valores factíveis para todas as restrições
+                ilimitado = True
+                for i in range(m):
+                    if sum(A[i][j] * (solucao[j] + (1 if j == nao_base[k] else 0)) for j in range(len(A[0]))) > b[i] + 1e-6:
+                        ilimitado = False
+                        break
+                
+                if ilimitado:
+                    print("\n=== PROBLEMA ILIMITADO ===")
+                    print(f"Variável x{nao_base[k]+1} pode crescer indefinidamente")
+                    return {'status': 'ilimitado', 'direcao': nao_base[k]}
+            
             epsilon, l = float('inf'), -1
             for i in range(m):
                 if y[i] > 1e-6:
@@ -278,7 +368,7 @@ def simplex(A, b, c, base, nao_base, eh_fase_I=False):
             continue
 
     return {'status': 'erro', 'mensagem': 'Número máximo de iterações atingido'}
-
+    
 def executar_simplex(eh_maximizacao, c, A, b):
     print("\n=== PROBLEMA ORIGINAL ===")
     print("Tipo:", "Maximização" if eh_maximizacao else "Minimização")
@@ -286,45 +376,51 @@ def executar_simplex(eh_maximizacao, c, A, b):
     imprimir_matriz(A, "Matriz de restrições (A)")
     imprimir_matriz([[bi] for bi in b], "Vetor de recursos (b)")
 
-    c_original_puro = c.copy()
-    num_vars_originais = len(c_original_puro)
+    c_original = c.copy()
+    num_var_originais = len(c_original)
 
     try:
+        # === FASE I ===
+        print("\n=== FASE I - BUSCA POR SOLUÇÃO FACTÍVEL ===")
         base = fase_I_aleatoria(A, b, c)
         nao_base = [j for j in range(len(A[0])) if j not in base]
         print("\nFASE I concluída. Base factível inicial:", [var+1 for var in base])
+
+        # Remove variáveis artificiais para Fase II
+        A = [linha[:num_var_originais] for linha in A]
+        c = c_original.copy()
+        base = [j for j in base if j < num_var_originais]
+        nao_base = [j for j in nao_base if j < num_var_originais]
+
+        # === FASE II ===
+        print("\n=== FASE II - OTIMIZAÇÃO ===")
+        
+        resultado = simplex(A, b, c, base, nao_base, eh_maximizacao)
+
+        if resultado['status'] == 'otimo':
+            x = [0.0] * num_var_originais
+            for i, var in enumerate(resultado['base']):
+                if var < num_var_originais:
+                    x[var] = resultado['x_B'][i]
+            
+            valor_otimo = sum(c_original[j] * x[j] for j in range(num_var_originais))
+
+            print("\n=== SOLUÇÃO ÓTIMA ENCONTRADA ===")
+            print(f"Valor da função objetivo: {formatar_valor(valor_otimo)}")
+            print("\nVariáveis básicas:")
+            for j, val in enumerate(x):
+                print(f"x{j+1} = {formatar_valor(val)}")
+
+        elif resultado['status'] == 'ilimitado':
+            print("\nO problema é ilimitado na direção de:")
+            print(f"Variável x{resultado['direcao']+1} pode crescer indefinidamente")
+            if eh_maximizacao:
+                print("(Valor objetivo tende a +∞)")
+            else:
+                print("(Valor objetivo tende a -∞)")
+
     except ValueError as e:
-        print(f"\nErro na Fase I: {str(e)}")
-        return
-
-    A = [linha[:num_vars_originais] for linha in A]
-    c = c_original_puro[:num_vars_originais]
-    base = [j for j in base if j < num_vars_originais]
-    nao_base = [j for j in nao_base if j < num_vars_originais]
-
-    print("\n=== FASE II ===")
-    c_modificada = [-x if eh_maximizacao else x for x in c]
-    resultado = simplex(A, b, c_modificada, base, nao_base)
-
-    if resultado['status'] == 'otimo':
-        x = [0.0] * len(A[0])
-        for i, var in enumerate(resultado['base']):
-            if var < len(x):
-                x[var] = resultado['x_B'][i]
-        valor_otimo = sum(c_original_puro[j] * x[j] for j in range(len(c_original_puro)))
-        if eh_maximizacao:
-            valor_otimo *= -1
-
-        print("\n=== SOLUÇÃO ÓTIMA ===")
-        print(f"Valor ótimo: {formatar_valor(valor_otimo)}")
-        print("\nVariáveis:")
-        for j, val in enumerate(x[:len(c_original_puro)]):
-            print(f"x{j+1} = {formatar_valor(val)}")
-
-    elif resultado['status'] == 'ilimitado':
-        print("\nO problema é ilimitado")
-    else:
-        print("\nErro:", resultado.get('mensagem', ''))
+        print(f"\nERRO: {str(e)}")
 
 if __name__ == "__main__":
     try:
